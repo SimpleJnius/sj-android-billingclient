@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "sj-android-billingclient"
+name = "sjbillingclient"
 version = "0.1.0"
 description = ""
 authors = ["Kenechukwu Akubue <kengoon19@gmail.com>"]

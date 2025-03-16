@@ -1,2 +1,4 @@
 /poetry.lock
 /.idea
+/.pypi_token
+/dist
