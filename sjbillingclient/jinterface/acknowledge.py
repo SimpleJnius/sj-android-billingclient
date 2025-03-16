@@ -11,5 +11,5 @@ class AcknowledgePurchaseResponseListener(PythonJavaClass):
         self.callback = callback
 
     @java_method("(Lcom/android/billingclient/api/BillingResult;)V")
-    def onBillingSetupFinished(self, billing_result):
+    def onAcknowledgePurchaseResponse(self, billing_result):
         self.callback(billing_result)

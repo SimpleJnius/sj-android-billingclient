@@ -9,5 +9,5 @@ class QueryProductDetailsParams(JavaClass, metaclass=MetaJavaClass):
 
 
 class QueryProductDetailsParamsProduct(JavaClass, metaclass=MetaJavaClass):
-    __javaclass__ = f"com/android/billingclient/api/QueryProductDetailsParams$Product$Builder"
+    __javaclass__ = f"com/android/billingclient/api/QueryProductDetailsParams$Product"
     newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/QueryProductDetailsParams$Product$Builder;")

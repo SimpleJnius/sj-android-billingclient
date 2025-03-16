@@ -1,6 +1,7 @@
-from jnius import PythonJavaClass, java_method
-
 __all__ = ("PurchasesUpdatedListener", )
+
+from jnius import PythonJavaClass, java_method
+from sjbillingclient import is_jnull
 
 
 class PurchasesUpdatedListener(PythonJavaClass):
@@ -12,4 +13,4 @@ class PurchasesUpdatedListener(PythonJavaClass):
 
     @java_method("(Lcom/android/billingclient/api/BillingResult;Ljava/util/List;)V")
     def onPurchasesUpdated(self, billing_result, purchases):
-        self.callback(billing_result, purchases)
+        self.callback(billing_result, is_jnull(purchases), purchases)
