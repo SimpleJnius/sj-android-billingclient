@@ -1,11 +1,8 @@
 from jnius import autoclass, JavaException
-
-from sjbillingclient import is_jnull
 from sjbillingclient.jclass.acknowledge import AcknowledgePurchaseParams
 from sjbillingclient.jclass.billing import BillingClient as SJBillingClient, ProductType, ProductDetailsParams, \
     BillingFlowParams
 from android.activity import _activity as activity  # noqa
-
 from sjbillingclient.jclass.consume import ConsumeParams
 from sjbillingclient.jclass.queryproduct import QueryProductDetailsParams, QueryProductDetailsParamsProduct
 from sjbillingclient.jinterface.acknowledge import AcknowledgePurchaseResponseListener
@@ -47,9 +44,9 @@ class BillingClient:
             .setProductList(
                 List.of(*[
                     QueryProductDetailsParamsProduct.newBuilder()
-                    .setProductId(product_id)
-                    .setProductType(product_type)
-                    .build()
+                        .setProductId(product_id)
+                        .setProductType(product_type)
+                        .build()
                     for product_id in products_ids
                 ])
             )
@@ -62,6 +59,29 @@ class BillingClient:
             queryProductDetailsParams,
             self.__product_details_response_listener
         )
+
+    @staticmethod
+    def get_product_details(product_details, product_type):
+        details = []
+        if product_type == ProductType.SUBS:
+            offer_details = product_details.getSubscriptionOfferDetails()
+            for offer in offer_details:
+                pricing_phase = offer.getPricingPhase().getPricingPhaseList().get(0)
+                details.append({
+                    "formatted_price": pricing_phase.getFormattedPrice(),
+                    "price_amount_micros": pricing_phase.getPriceAmountMicros,
+                    "price_currency_code": pricing_phase.getPriceCurrencyCode(),
+                })
+            return details
+        elif product_type == ProductType.INAPP:
+            offer_details = product_details.getOneTimePurchaseOfferDetails()
+            details.append({
+                "formatted_price": offer_details.getFormattedPrice(),
+                "price_amount_micros": offer_details.getPriceAmountMicros,
+                "price_currency_code": offer_details.getPriceCurrencyCode(),
+            })
+            return details
+        raise Exception("product_type not supported. Must be one of `ProductType.SUBS`, `ProductType.INAPP`")
 
     def launch_billing_flow(self, product_details: list, offer_token: str = None):
 
