@@ -37,6 +37,9 @@ class BillingClient:
         )
         self.__billing_client.startConnection(self.__billing_client_state_listener)
 
+    def end_connection(self):
+        self.__billing_client.endConnection()
+
     def query_product_details_async(self, product_type, products_ids: list, on_product_details_response):
         List = autoclass("java.util.List")
         queryProductDetailsParams = (
@@ -44,9 +47,9 @@ class BillingClient:
             .setProductList(
                 List.of(*[
                     QueryProductDetailsParamsProduct.newBuilder()
-                        .setProductId(product_id)
-                        .setProductType(product_type)
-                        .build()
+                    .setProductId(product_id)
+                    .setProductType(product_type)
+                    .build()
                     for product_id in products_ids
                 ])
             )
@@ -66,8 +69,9 @@ class BillingClient:
         if product_type == ProductType.SUBS:
             offer_details = product_details.getSubscriptionOfferDetails()
             for offer in offer_details:
-                pricing_phase = offer.getPricingPhase().getPricingPhaseList().get(0)
+                pricing_phase = offer.getPricingPhases().getPricingPhaseList().get(0)
                 details.append({
+                    "product_id": product_details.getProductId(),
                     "formatted_price": pricing_phase.getFormattedPrice(),
                     "price_amount_micros": pricing_phase.getPriceAmountMicros,
                     "price_currency_code": pricing_phase.getPriceCurrencyCode(),
@@ -76,6 +80,7 @@ class BillingClient:
         elif product_type == ProductType.INAPP:
             offer_details = product_details.getOneTimePurchaseOfferDetails()
             details.append({
+                "product_id": product_details.getProductId(),
                 "formatted_price": offer_details.getFormattedPrice(),
                 "price_amount_micros": offer_details.getPriceAmountMicros,
                 "price_currency_code": offer_details.getPriceCurrencyCode(),
