@@ -1,7 +1,7 @@
 from jnius import JavaClass, MetaJavaClass, JavaStaticMethod, JavaStaticField, JavaMethod, JavaMultipleMethod
 
 __all__ = ("BillingClient", "BillingFlowParams", "ProductType", "GetBillingConfigParams",
-           "ProductDetailsParams")
+           "ProductDetailsParams", "BillingResponseCode")
 
 
 class BillingClient(JavaClass, metaclass=MetaJavaClass):
