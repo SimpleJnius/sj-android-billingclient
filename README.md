@@ -27,7 +27,9 @@ SJBillingClient is a Python wrapper for the Google Play Billing Library that fac
 ```shell
 # Using pip
 pip install sjbillingclient
+````
 
+```toml
 # In Buildozer (add to buildozer.spec)
 requirements = sjbillingclient
 android.gradle_dependencies = com.android.billingclient:billing:8.0.0
