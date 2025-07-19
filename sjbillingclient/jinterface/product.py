@@ -10,6 +10,7 @@ class ProductDetailsResponseListener(PythonJavaClass):
     def __init__(self, callback):
         self.callback = callback
 
-    @java_method("(Lcom/android/billingclient/api/BillingResult;Ljava/util/List;)V")
-    def onProductDetailsResponse(self, billing_result, product_details_list):
-        self.callback(billing_result, product_details_list)
+    @java_method("(Lcom/android/billingclient/api/BillingResult;"
+                 "Lcom/android/billingclient/api/QueryProductDetailsResult;)V")
+    def onProductDetailsResponse(self, billing_result, product_details_result):
+        self.callback(billing_result, product_details_result)

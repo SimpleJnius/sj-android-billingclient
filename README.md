@@ -20,7 +20,7 @@ SJBillingClient is a Python wrapper for the Google Play Billing Library that fac
 
 - Python 3.9+
 - pyjnius 1.6.1+
-- Android application with Google Play Billing Library (version 7.1.1 recommended)
+- Android application with Google Play Billing Library (version 8.0.0 recommended)
 
 ## Installation
 
@@ -30,7 +30,7 @@ pip install sjbillingclient
 
 # In Buildozer (add to buildozer.spec)
 requirements = sjbillingclient
-android.gradle_dependencies = com.android.billingclient:billing:7.1.1
+android.gradle_dependencies = com.android.billingclient:billing:8.0.0
 ```
 
 ## Quick Start
@@ -154,14 +154,28 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from sjbillingclient.jclass.billing import BillingResponseCode, ProductType
 from sjbillingclient.tools import BillingClient
 
-# Load the KV file
 Builder.load_file(join(dirname(__file__), basename(__file__).split(".")[0] + ".kv"))
 
 
 class HomeScreen(Screen):
+    """
+    A screen that demonstrates Google Play Billing integration with Kivy.
+
+    This screen provides functionality to make in-app purchases and subscriptions
+    using the Google Play Billing Library through the SJBillingClient wrapper.
+
+    Attributes:
+        billing_client (BillingClient): The client used to interact with Google Play Billing.
+    """
     billing_client = None
 
-    def purchase_or_subscribe(self):
+    def support(self):
+        """
+        Initializes the billing client and starts a connection to the Google Play Billing service.
+
+        This method is called when the user wants to make a purchase or subscription.
+        If a billing client already exists, it ends the connection before creating a new one.
+        """
         if self.billing_client:
             self.billing_client.end_connection()
 
@@ -172,6 +186,17 @@ class HomeScreen(Screen):
         )
 
     def on_purchases_updated(self, billing_result, null, purchases):
+        """
+        Callback method that is called when purchases are updated.
+
+        This method handles the result of a purchase flow, either acknowledging
+        a subscription or consuming a one-time purchase.
+
+        Args:
+            billing_result: The result of the billing operation.
+            null: Boolean indicating if the purchases list is null.
+            purchases: List of purchases that were updated.
+        """
         if billing_result.getResponseCode() == BillingResponseCode.OK and not null:
             for purchase in purchases:
                 if self.ids.subscribe.active:
@@ -181,40 +206,96 @@ class HomeScreen(Screen):
                     )
                 else:
                     self.billing_client.consume_async(purchase, self.on_consume_response)
+        print(billing_result.getResponseCode(), billing_result.getDebugMessage())
 
     def on_acknowledge_purchase_response(self, billing_result):
+        """
+        Callback method that is called when a purchase acknowledgement is complete.
+
+        Args:
+            billing_result: The result of the acknowledgement operation.
+        """
         print(billing_result.getDebugMessage())
         if billing_result.getResponseCode() == BillingResponseCode.OK:
             self.toast("Thank you for subscribing to buy us a cup of coffee! monthly")
 
     def on_consume_response(self, billing_result):
+        """
+        Callback method that is called when a purchase consumption is complete.
+
+        Args:
+            billing_result: The result of the consumption operation.
+        """
         if billing_result.getResponseCode() == BillingResponseCode.OK:
             self.toast("Thank you for buying us a cup of coffee!")
 
-    def on_product_details_response(self, billing_result, product_details_list):
-        for product_details in product_details_list:
-            self.billing_client.get_product_details(
-                product_details,
-                ProductType.SUBS if self.ids.subscribe.active else ProductType.INAPP)
+    def on_product_details_response(self, billing_result, product_details_result):
+        """
+        Callback method that is called when product details are retrieved.
+
+        This method processes the product details and launches the billing flow.
+
+        Args:
+            billing_result: The result of the product details query.
+            product_details_result: The result containing product details and unfetched products.
+        """
+        product_details_list = product_details_result.getProductDetailsList()
+        unfetched_product_list = product_details_result.getUnfetchedProductList()
+
         if billing_result.getResponseCode() == BillingResponseCode.OK:
+            for product_details in product_details_list:
+                self.billing_client.get_product_details(
+                    product_details,
+                    ProductType.SUBS if self.ids.subscribe.active else ProductType.INAPP)
+            for unfetched_product in unfetched_product_list:
+                print(self.billing_client.get_unfetched_product(unfetched_product))
             self.billing_client.launch_billing_flow(product_details=product_details_list)
 
     def on_billing_setup_finished(self, billing_result):
+        """
+        Callback method that is called when the billing setup is complete.
+
+        This method queries product details if the billing setup was successful.
+
+        Args:
+            billing_result: The result of the billing setup operation.
+        """
         product_id = self.ids.btn.product_id
         if billing_result.getResponseCode() == BillingResponseCode.OK:
             self.billing_client.query_product_details_async(
-                product_type=ProductType.SUBS if self.ids.subscribe.active else ProductType.INAPP,
+                product_type=ProductType.SUBS if self.ids.subscribe else ProductType.INAPP,
                 products_ids=[product_id],
                 on_product_details_response=self.on_product_details_response,
             )
 
     def toast(self, message):
+        """
+        Display a toast message.
+
+        This is a simple implementation that just prints the message.
+        In a real app, you would use platform-specific toast functionality.
+
+        Args:
+            message: The message to display.
+        """
         # Implementation of toast message (platform specific)
         print(message)
 
 
 class BillingApp(App):
+    """
+    Main application class for the SJBillingClient demo.
+
+    This class sets up the application and creates the screen manager
+    with the HomeScreen.
+    """
     def build(self):
+        """
+        Build the application UI.
+
+        Returns:
+            ScreenManager: The root widget of the application.
+        """
         # Create screen manager
         sm = ScreenManager()
         sm.add_widget(HomeScreen(name='home'))
@@ -260,7 +341,7 @@ if __name__ == '__main__':
             product_id: 'coffee_product_id'
             size_hint_y: None
             height: '60dp'
-            on_release: root.purchase_or_subscribe()
+            on_release: root.support()
 
         Widget:
             # Spacer
@@ -268,13 +349,20 @@ if __name__ == '__main__':
 
 This example demonstrates:
 
-1. A `HomeScreen` class that handles all billing operations
+1. A `HomeScreen` class that extends `Screen` and handles all billing operations
 2. A `BillingApp` class that sets up the Kivy application and screen manager
 3. A Kivy layout file that defines the UI with:
    - A checkbox to toggle between one-time purchase and subscription
    - A button to initiate the purchase flow
 
-The `purchase_or_subscribe` method is called when the button is pressed, which initializes the billing client and starts the connection. The various callback methods handle different stages of the billing process, including acknowledging purchases and consuming one-time purchases.
+The `support` method is called when the button is pressed, which initializes the billing client and starts the connection. The various callback methods handle different stages of the billing process, including:
+- Handling purchase updates with `on_purchases_updated`
+- Acknowledging subscription purchases with `acknowledge_purchase`
+- Consuming one-time purchases with `consume_async`
+- Processing product details with `on_product_details_response`, including handling unfetched products
+- Querying product details with `query_product_details_async`
+
+This example is designed to be copy-and-paste runnable, with no need for the user to add or remove anything to test it.
 
 ## API Reference
 
@@ -282,16 +370,89 @@ The `purchase_or_subscribe` method is called when the button is pressed, which i
 
 The main class for interacting with Google Play Billing.
 
+#### Constructor
+
+- `__init__(on_purchases_updated, enable_one_time_products=True, enable_prepaid_plans=False)`: 
+  - Initializes a new BillingClient instance
+  - `on_purchases_updated`: Callback function that will be triggered when purchases are updated
+  - `enable_one_time_products`: Boolean to enable one-time products (default: True)
+  - `enable_prepaid_plans`: Boolean to enable prepaid plans (default: False)
+
+#### Connection Methods
+
+- `start_connection(on_billing_setup_finished, on_billing_service_disconnected)`: 
+  - Starts a connection with the billing client
+  - `on_billing_setup_finished`: Callback when billing setup is complete
+  - `on_billing_service_disconnected`: Callback when billing service is disconnected
+
+- `end_connection()`: 
+  - Ends the connection with the billing client
+
+#### Product Details Methods
+
+- `query_product_details_async(product_type, products_ids, on_product_details_response)`: 
+  - Queries product details asynchronously
+  - `product_type`: Type of products (INAPP or SUBS)
+  - `products_ids`: List of product IDs to query
+  - `on_product_details_response`: Callback for product details response
+
+- `get_product_details(product_details, product_type)`: 
+  - Gets formatted product details
+  - `product_details`: Product details object
+  - `product_type`: Type of product (INAPP or SUBS)
+  - Returns a list of dictionaries with product details
+
+- `get_unfetched_product(unfetched_product)`: 
+  - Gets details about an unfetched product
+  - `unfetched_product`: Unfetched product object
+  - Returns a dictionary with product ID, type, and status code
+
+#### Purchase Methods
+
+- `launch_billing_flow(product_details, offer_token=None)`: 
+  - Launches the billing flow for purchase
+  - `product_details`: List of product details objects
+  - `offer_token`: Optional token for subscription offers
+
+- `consume_async(purchase, on_consume_response)`: 
+  - Consumes a purchase asynchronously
+  - `purchase`: Purchase object to consume
+  - `on_consume_response`: Callback for consume response
+
+- `acknowledge_purchase(purchase_token, on_acknowledge_purchase_response)`: 
+  - Acknowledges a purchase
+  - `purchase_token`: Token of the purchase to acknowledge
+  - `on_acknowledge_purchase_response`: Callback for acknowledge response
+
+### PendingPurchasesParams
+
+Parameters for handling pending purchases.
+
 #### Methods
 
-- `__init__(on_purchases_updated)`: Initialize with a callback for purchase updates
-- `start_connection(on_billing_setup_finished, on_billing_service_disconnected)`: Start billing connection
-- `end_connection()`: End billing connection
-- `query_product_details_async(product_type, products_ids, on_product_details_response)`: Query product details
-- `get_product_details(product_details, product_type)`: Get formatted product details
-- `launch_billing_flow(product_details, offer_token=None)`: Launch purchase flow
-- `consume_async(purchase, on_consume_response)`: Consume a purchase
-- `acknowledge_purchase(purchase_token, on_acknowledge_purchase_response)`: Acknowledge a purchase
+- `newBuilder()`: Creates a new builder for PendingPurchasesParams
+- `build()`: Builds the PendingPurchasesParams object
+- `enableOneTimeProducts()`: Enables one-time products
+- `enablePrepaidPlans()`: Enables prepaid plans
+
+### QueryProductDetailsParams
+
+Parameters for querying product details.
+
+#### Methods
+
+- `newBuilder()`: Creates a new builder for QueryProductDetailsParams
+- `setProductList(product_list)`: Sets the list of products to query
+- `build()`: Builds the QueryProductDetailsParams object
+
+### QueryProductDetailsResult
+
+Result of a product details query.
+
+#### Methods
+
+- `getProductDetailsList()`: Gets the list of product details
+- `getUnfetchedProductList()`: Gets the list of unfetched products
 
 ### ProductType
 
@@ -304,10 +465,17 @@ Constants for product types:
 
 Constants for billing response codes:
 
-- `BillingResponseCode.OK`: Success
-- `BillingResponseCode.USER_CANCELED`: User canceled
-- `BillingResponseCode.SERVICE_UNAVAILABLE`: Service unavailable
-- And many others
+- `BillingResponseCode.OK`: Success (0)
+- `BillingResponseCode.USER_CANCELED`: User canceled (1)
+- `BillingResponseCode.SERVICE_UNAVAILABLE`: Service unavailable (2)
+- `BillingResponseCode.BILLING_UNAVAILABLE`: Billing unavailable (3)
+- `BillingResponseCode.ITEM_UNAVAILABLE`: Item unavailable (4)
+- `BillingResponseCode.DEVELOPER_ERROR`: Developer error (5)
+- `BillingResponseCode.ERROR`: General error (6)
+- `BillingResponseCode.ITEM_ALREADY_OWNED`: Item already owned (7)
+- `BillingResponseCode.ITEM_NOT_OWNED`: Item not owned (8)
+- `BillingResponseCode.SERVICE_DISCONNECTED`: Service disconnected (10)
+- `BillingResponseCode.FEATURE_NOT_SUPPORTED`: Feature not supported (12)
 
 ## Contributing
 

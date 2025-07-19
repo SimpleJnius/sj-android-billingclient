@@ -42,13 +42,13 @@ from sjbillingclient.jclass.billing import BillingClient as SJBillingClient, Pro
     BillingFlowParams
 from android.activity import _activity as activity  # noqa
 from sjbillingclient.jclass.consume import ConsumeParams
+from sjbillingclient.jclass.purchase import PendingPurchasesParams
 from sjbillingclient.jclass.queryproduct import QueryProductDetailsParams, QueryProductDetailsParamsProduct
 from sjbillingclient.jinterface.acknowledge import AcknowledgePurchaseResponseListener
 from sjbillingclient.jinterface.billing import BillingClientStateListener
 from sjbillingclient.jinterface.consume import ConsumeResponseListener
 from sjbillingclient.jinterface.product import ProductDetailsResponseListener
 from sjbillingclient.jinterface.purchases import PurchasesUpdatedListener
-
 
 ERROR_NO_BASE_PLAN = "You don't have a base plan"
 ERROR_NO_BASE_PLAN_ID = "You don't have a base plan id"
@@ -77,7 +77,13 @@ class BillingClient:
     :ivar __acknowledge_purchase_response_listener: Listener handling responses for acknowledging purchases.
     :type __acknowledge_purchase_response_listener: AcknowledgePurchaseResponseListener | None
     """
-    def __init__(self, on_purchases_updated) -> None:
+
+    def __init__(
+            self,
+            on_purchases_updated,
+            enable_one_time_products: bool = True,
+            enable_prepaid_plans: bool = False
+    ) -> None:
         """
         Initializes an instance of the class with the given purchase update callback.
 
@@ -92,10 +98,15 @@ class BillingClient:
         self.__acknowledge_purchase_response_listener = None
 
         self.__purchase_update_listener = PurchasesUpdatedListener(on_purchases_updated)
+        pending_purchase_params = PendingPurchasesParams.newBuilder()
+        if enable_one_time_products:
+            pending_purchase_params.enableOneTimeProducts()
+        if enable_prepaid_plans:
+            pending_purchase_params.enablePrepaidPlans()
         self.__billing_client = (
             SJBillingClient.newBuilder(activity.context)
             .setListener(self.__purchase_update_listener)
-            .enablePendingPurchases()
+            .enablePendingPurchases(pending_purchase_params.build())
             .build()
         )
 
@@ -176,6 +187,28 @@ class BillingClient:
                 .setProductId(product_id)
                 .setProductType(product_type)
                 .build())
+
+    @staticmethod
+    def get_unfetched_product(unfetched_product) -> Dict:
+        """
+        Retrieves detailed product information for an unfetched product.
+
+        This function takes an object representing an unfetched product and extracts
+        important details such as the product ID, product type, and status code.
+        The extracted details are then returned as a dictionary.
+
+        :param unfetched_product: The product object that has not yet been fetched.
+            Must provide methods to retrieve product ID, type, and status code.
+        :type unfetched_product: Any
+        :return: A dictionary containing detailed information about the unfetched
+            product, including its ID, type, and status code.
+        :rtype: Dict
+        """
+        return {
+            "product_id": unfetched_product.getProductId(),
+            "product_type": unfetched_product.getProductType(),
+            "status_code": unfetched_product.getStatusCode(),
+        }
 
     def get_product_details(self, product_details, product_type: str) -> List[Dict]:
         """
@@ -292,6 +325,7 @@ class BillingClient:
             self._create_product_params(product_detail, offer_token)
             for product_detail in product_details
         ]
+        print(product_params_list)
 
         billing_flow_params = (BillingFlowParams.newBuilder()
                                .setProductDetailsParamsList(JavaList.of(*product_params_list))
