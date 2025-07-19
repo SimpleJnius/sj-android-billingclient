@@ -263,7 +263,7 @@ class HomeScreen(Screen):
         product_id = self.ids.btn.product_id
         if billing_result.getResponseCode() == BillingResponseCode.OK:
             self.billing_client.query_product_details_async(
-                product_type=ProductType.SUBS if self.ids.subscribe else ProductType.INAPP,
+                product_type=ProductType.SUBS if self.ids.subscribe.active else ProductType.INAPP,
                 products_ids=[product_id],
                 on_product_details_response=self.on_product_details_response,
             )
