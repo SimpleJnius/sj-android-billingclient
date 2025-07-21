@@ -20,7 +20,9 @@ SJBillingClient is a Python wrapper for the Google Play Billing Library that fac
 
 - Python 3.9+
 - pyjnius 1.6.1+
-- Android application with Google Play Billing Library (version 8.0.0 recommended)
+- Android application with Google Play Billing Library (version 8.0.0 required)
+
+> **Note**: This library is specifically designed for Google Play Billing Library version 8.0.0. Earlier or later versions may not be compatible due to API changes.
 
 ## Installation
 
@@ -29,7 +31,7 @@ SJBillingClient is a Python wrapper for the Google Play Billing Library that fac
 pip install sjbillingclient
 ````
 
-```toml
+```rpmspec
 # In Buildozer (add to buildozer.spec)
 requirements = sjbillingclient
 android.gradle_dependencies = com.android.billingclient:billing:8.0.0
@@ -140,6 +142,37 @@ def on_acknowledge_purchase_response(billing_result):
 
 # Acknowledge a purchase
 client.acknowledge_purchase(purchase.getPurchaseToken(), on_acknowledge_purchase_response)
+```
+
+### Querying Purchases
+
+```python
+from sjbillingclient.tools import BillingClient
+from sjbillingclient.jclass.billing import ProductType, BillingResponseCode
+from sjbillingclient.jclass.purchase import PurchaseState
+
+def on_query_purchases_response(billing_result, purchases):
+    if billing_result.getResponseCode() == BillingResponseCode.OK:
+        if purchases and not purchases.isEmpty():
+            for i in range(purchases.size()):
+                purchase = purchases.get(i)
+                # Get formatted purchase details
+                purchase_details = client.get_purchase(purchase)
+                print(f"Products: {purchase_details['products']}")
+                print(f"Purchase token: {purchase_details['purchase_token']}")
+                print(f"Purchase state: {purchase_details['purchase_state']}")
+
+                # Handle the purchase based on its state
+                if purchase_details['purchase_state'] == PurchaseState.PURCHASED:
+                    if not purchase_details['is_acknowledged']:
+                        # Acknowledge the purchase
+                        client.acknowledge_purchase(purchase.getPurchaseToken(), on_acknowledge_purchase_response)
+
+# Query purchases for a specific product type
+client.query_purchase_async(
+    product_type=ProductType.INAPP,
+    on_query_purchases_response=on_query_purchases_response
+)
 ```
 
 ### Kivy Integration Example
@@ -409,6 +442,16 @@ The main class for interacting with Google Play Billing.
   - `unfetched_product`: Unfetched product object
   - Returns a dictionary with product ID, type, and status code
 
+- `query_purchase_async(product_type, on_query_purchases_response)`:
+  - Queries purchases asynchronously
+  - `product_type`: Type of products (INAPP or SUBS)
+  - `on_query_purchases_response`: Callback for purchases response
+
+- `get_purchase(purchase)`:
+  - Gets formatted purchase details
+  - `purchase`: Purchase object
+  - Returns a dictionary with purchase details including products, purchase token, purchase state, etc.
+
 #### Purchase Methods
 
 - `launch_billing_flow(product_details, offer_token=None)`: 
@@ -456,12 +499,89 @@ Result of a product details query.
 - `getProductDetailsList()`: Gets the list of product details
 - `getUnfetchedProductList()`: Gets the list of unfetched products
 
+### Purchase
+
+Represents a purchase made by a user.
+
+#### Methods
+
+- `getProducts()`: Gets the list of product IDs associated with the purchase
+- `getPurchaseToken()`: Gets the token that uniquely identifies the purchase
+
+### PurchaseState
+
+Constants for purchase states:
+
+- `PurchaseState.PENDING`: Purchase is pending
+- `PurchaseState.PURCHASED`: Purchase is completed
+- `PurchaseState.UNSPECIFIED`: Purchase state is unspecified
+
+### PendingPurchaseUpdate
+
+Represents a pending update to a purchase.
+
+#### Methods
+
+- `getProducts()`: Gets the list of product IDs associated with the pending purchase update
+- `getPurchaseToken()`: Gets the token that uniquely identifies the pending purchase update
+
+### AccountIdentifiers
+
+Contains account identifiers for a purchase.
+
+#### Methods
+
+- `getObfuscatedAccountId()`: Gets the obfuscated account ID
+- `getProfileId()`: Gets the profile ID
+
 ### ProductType
 
 Constants for product types:
 
 - `ProductType.INAPP`: One-time purchases
 - `ProductType.SUBS`: Subscriptions
+
+### BillingFlowParamsBuilder
+
+Builder for BillingFlowParams.
+
+#### Methods
+
+- `build()`: Builds the BillingFlowParams object
+- `setIsOfferPersonalized(boolean)`: Sets whether the offer is personalized
+- `setObfuscatedAccountId(String)`: Sets the obfuscated account ID
+- `setObfuscatedProfileId(String)`: Sets the obfuscated profile ID
+- `setProductDetailsParamsList(List)`: Sets the list of product details parameters
+- `setSubscriptionUpdateParams(SubscriptionUpdateParams)`: Sets the subscription update parameters
+
+### SubscriptionUpdateParams
+
+Parameters for updating a subscription.
+
+#### Methods
+
+- `newBuilder()`: Creates a new builder for SubscriptionUpdateParams
+- `build()`: Builds the SubscriptionUpdateParams object
+
+### SubscriptionUpdateParamsBuilder
+
+Builder for SubscriptionUpdateParams.
+
+#### Methods
+
+- `build()`: Builds the SubscriptionUpdateParams object
+- `setOldPurchaseToken(String)`: Sets the token of the old purchase to be replaced
+- `setSubscriptionReplacementMode(int)`: Sets the replacement mode for the subscription
+
+### ReplacementMode
+
+Constants for subscription replacement modes:
+
+- `ReplacementMode.CHARGE_FULL_PRICE`: Charge the full price for the new subscription
+- `ReplacementMode.CHARGE_PRORATED_PRICE`: Charge a prorated price for the new subscription
+- `ReplacementMode.DEFERRED`: Defer the replacement until the next billing cycle
+- `ReplacementMode.WITHOUT_PRORATION`: Replace without proration
+- `ReplacementMode.WITH_TIME_PRORATION`: Replace with time proration
 
 ### BillingResponseCode
 

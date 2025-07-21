@@ -1,7 +1,8 @@
 from jnius import JavaClass, MetaJavaClass, JavaStaticMethod, JavaStaticField, JavaMethod, JavaMultipleMethod
 
-__all__ = ("BillingClient", "BillingFlowParams", "ProductType", "GetBillingConfigParams",
-           "ProductDetailsParams", "BillingResponseCode")
+__all__ = ("BillingClient", "BillingFlowParams", "BillingFlowParamsBuilder", "ProductType", "GetBillingConfigParams",
+           "ProductDetailsParams", "BillingResponseCode", "SubscriptionUpdateParams", "SubscriptionUpdateParamsBuilder",
+           "ReplacementMode")
 
 
 class BillingClient(JavaClass, metaclass=MetaJavaClass):
@@ -54,25 +55,26 @@ class BillingClient(JavaClass, metaclass=MetaJavaClass):
         "(Lcom/android/billingclient/api/QueryProductDetailsParams;"
         "Lcom/android/billingclient/api/ProductDetailsResponseListener;)V"
     )
-    queryPurchaseHistoryAsync = JavaMultipleMethod([
-        ("(Lcom/android/billingclient/api/QueryPurchaseHistoryParams;"
-         "Lcom/android/billingclient/api/PurchaseHistoryResponseListener;)V",
-         False, False),
-        ("(Ljava/lang/String;Lcom/android/billingclient/api/PurchaseHistoryResponseListener;)V,",
-         False, False),
-    ])
-    queryPurchasesAsync = JavaMultipleMethod([
-        ("(Lcom/android/billingclient/api/QueryPurchasesParams;"
-         "Lcom/android/billingclient/api/PurchasesResponseListener;)V", False, False),
-        ("(Ljava/lang/String;Lcom/android/billingclient/api/PurchasesResponseListener;)V",
-         False, False),
-    ])
-    querySkuDetailsAsync = JavaMethod(
-        "(Lcom/android/billingclient/api/SkuDetailsParams;"
-        "Lcom/android/billingclient/api/SkuDetailsResponseListener;)V"
+    queryPurchasesAsync = JavaMethod(
+        "(Lcom/android/billingclient/api/QueryPurchasesParams;"
+        "Lcom/android/billingclient/api/PurchasesResponseListener;)V"
     )
     startConnection = JavaMethod("(Lcom/android/billingclient/api/BillingClientStateListener;)V")
     isReady = JavaMethod("()Z")
+
+
+class BillingClientBuilder(JavaClass, metaclass=MetaJavaClass):
+    __javaclass__ = "com/android/billingclient/api/BillingClient$Builder"
+    build = JavaMethod("()Lcom/android/billingclient/api/BillingClient;")
+    enableAlternativeBillingOnly = JavaMethod("()Lcom/android/billingclient/api/BillingClient$Builder;")
+    enableAutoServiceReconnection = JavaMethod("()Lcom/android/billingclient/api/BillingClient$Builder;")
+    enableExternalOffer = JavaMethod("()Lcom/android/billingclient/api/BillingClient$Builder;")
+    enablePendingPurchases = JavaMethod("(Lcom/android/billingclient/api/PendingPurchasesParams;)"
+                                        "Lcom/android/billingclient/api/BillingClient$Builder;")
+    enableUserChoiceBilling = JavaMethod("(Lcom/android/billingclient/api/UserChoiceBillingListener;)"
+                                         "Lcom/android/billingclient/api/BillingClient$Builder;")
+    setListener = JavaMethod("(Lcom/android/billingclient/api/PurchasesUpdatedListener;)"
+                             "Lcom/android/billingclient/api/BillingClient$Builder;")
 
 
 class ProductType(JavaClass, metaclass=MetaJavaClass):
@@ -102,6 +104,19 @@ class BillingFlowParams(JavaClass, metaclass=MetaJavaClass):
     newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/BillingFlowParams$Builder;")
 
 
+class BillingFlowParamsBuilder(JavaClass, metaclass=MetaJavaClass):
+    __javaclass__ = "com/android/billingclient/api/BillingFlowParams$Builder"
+    build = JavaMethod("()Lcom/android/billingclient/api/BillingFlowParams;")
+    setIsOfferPersonalized = JavaMethod("(Z)Lcom/android/billingclient/api/BillingFlowParams$Builder;")
+    setObfuscatedAccountId = JavaMethod("(Ljava/lang/String;)Lcom/android/billingclient/api/BillingFlowParams$Builder;")
+    setObfuscatedProfileId = JavaMethod("(Ljava/lang/String;)Lcom/android/billingclient/api/BillingFlowParams$Builder;")
+    setProductDetailsParamsList = JavaMethod("(Ljava/util/List;)Lcom/android/billingclient/api"
+                                             "/BillingFlowParams$Builder;")
+    setSubscriptionUpdateParams = JavaMethod("(Lcom/android/billingclient/api"
+                                             "/BillingFlowParams$SubscriptionUpdateParams;)Lcom/android/billingclient"
+                                             "/api/BillingFlowParams$Builder;")
+
+
 class GetBillingConfigParams(JavaClass, metaclass=MetaJavaClass):
     __javaclass__ = "com/android/billingclient/api/GetBillingConfigParams"
     newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/GetBillingConfigParams$Builder;")
@@ -110,3 +125,28 @@ class GetBillingConfigParams(JavaClass, metaclass=MetaJavaClass):
 class ProductDetailsParams(JavaClass, metaclass=MetaJavaClass):
     __javaclass__ = "com/android/billingclient/api/BillingFlowParams$ProductDetailsParams"
     newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/BillingFlowParams$ProductDetailsParams$Builder;")
+
+
+class SubscriptionUpdateParams(JavaClass, metaclass=MetaJavaClass):
+    __javaclass__ = "com/android/billingclient/api/BillingFlowParams$SubscriptionUpdateParams"
+    newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/BillingFlowParams"
+                                  "$SubscriptionUpdateParams$Builder;")
+
+
+class SubscriptionUpdateParamsBuilder(JavaClass, metaclass=MetaJavaClass):
+    __javaclass__ = "com/android/billingclient/api/BillingFlowParams$SubscriptionUpdateParams$Builder"
+    build = JavaMethod("()Lcom/android/billingclient/api/BillingFlowParams$SubscriptionUpdateParams;")
+    setOldPurchaseToken = JavaMethod("(Ljava/lang/String;)Lcom/android/billingclient/api"
+                                     "/BillingFlowParams$SubscriptionUpdateParams$Builder;")
+    setSubscriptionReplacementMode = JavaMethod("(I)Lcom/android/billingclient/api"
+                                                "/BillingFlowParams$SubscriptionUpdateParams$Builder;")
+
+
+class ReplacementMode(JavaClass, metaclass=MetaJavaClass):
+    __javaclass__ = "com/android/billingclient/api/BillingFlowParams$SubscriptionUpdateParams$ReplacementMode"
+    CHARGE_FULL_PRICE = JavaStaticField("I")
+    CHARGE_PRORATED_PRICE = JavaStaticField("I")
+    DEFERRED = JavaStaticField("I")
+    UNKNOWN_REPLACEMENT_MODE = JavaStaticField("I")
+    WITHOUT_PRORATION = JavaStaticField("I")
+    WITH_TIME_PRORATION = JavaStaticField("I")

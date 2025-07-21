@@ -44,11 +44,12 @@ from android.activity import _activity as activity  # noqa
 from sjbillingclient.jclass.consume import ConsumeParams
 from sjbillingclient.jclass.purchase import PendingPurchasesParams
 from sjbillingclient.jclass.queryproduct import QueryProductDetailsParams, QueryProductDetailsParamsProduct
+from sjbillingclient.jclass.querypurchases import QueryPurchasesParams
 from sjbillingclient.jinterface.acknowledge import AcknowledgePurchaseResponseListener
 from sjbillingclient.jinterface.billing import BillingClientStateListener
 from sjbillingclient.jinterface.consume import ConsumeResponseListener
 from sjbillingclient.jinterface.product import ProductDetailsResponseListener
-from sjbillingclient.jinterface.purchases import PurchasesUpdatedListener
+from sjbillingclient.jinterface.purchases import PurchasesUpdatedListener, PurchasesResponseListener
 
 ERROR_NO_BASE_PLAN = "You don't have a base plan"
 ERROR_NO_BASE_PLAN_ID = "You don't have a base plan id"
@@ -76,13 +77,16 @@ class BillingClient:
     :type __consume_response_listener: ConsumeResponseListener | None
     :ivar __acknowledge_purchase_response_listener: Listener handling responses for acknowledging purchases.
     :type __acknowledge_purchase_response_listener: AcknowledgePurchaseResponseListener | None
+    :type __purchases_response_listener: PurchasesResponseListener | None handling responses for purchase queries.
     """
 
     def __init__(
             self,
             on_purchases_updated,
+            enable_auto_service_reconnection: bool = True,
             enable_one_time_products: bool = True,
-            enable_prepaid_plans: bool = False
+            enable_prepaid_plans: bool = False,
+            enable_external_offer: bool = False,
     ) -> None:
         """
         Initializes an instance of the class with the given purchase update callback.
@@ -96,6 +100,7 @@ class BillingClient:
         self.__product_details_response_listener = None
         self.__consume_response_listener = None
         self.__acknowledge_purchase_response_listener = None
+        self.__purchases_response_listener = None
 
         self.__purchase_update_listener = PurchasesUpdatedListener(on_purchases_updated)
         pending_purchase_params = PendingPurchasesParams.newBuilder()
@@ -103,14 +108,18 @@ class BillingClient:
             pending_purchase_params.enableOneTimeProducts()
         if enable_prepaid_plans:
             pending_purchase_params.enablePrepaidPlans()
-        self.__billing_client = (
-            SJBillingClient.newBuilder(activity.context)
-            .setListener(self.__purchase_update_listener)
-            .enablePendingPurchases(pending_purchase_params.build())
-            .build()
-        )
 
-    def start_connection(self, on_billing_setup_finished, on_billing_service_disconnected) -> None:
+        billing_client = SJBillingClient.newBuilder(activity.context)
+        if enable_external_offer:
+            billing_client.enableExternalOffer()
+        if enable_auto_service_reconnection:
+            billing_client.enableAutoServiceReconnection()
+        self.__billing_client = billing_client \
+            .setListener(self.__purchase_update_listener) \
+            .enablePendingPurchases(pending_purchase_params.build()) \
+            .build()
+
+    def start_connection(self, on_billing_setup_finished, on_billing_service_disconnected=lambda: None) -> None:
         """
         Starts a connection with the billing client and initializes the billing
         client state listener. This method sets up a listener to handle billing
@@ -139,6 +148,26 @@ class BillingClient:
         :return: None
         """
         self.__billing_client.endConnection()
+
+    def query_purchase_async(self, product_type: str, on_query_purchases_response) -> None:
+        """
+        Queries purchases asynchronously for a given product type.
+
+        This function utilizes the provided purchases response callback to handle the
+        resulting response from the query.
+
+        :param product_type: The type of the products to query purchases for (e.g., "inapp" or "subs").
+        :param on_query_purchases_response: A callback function that is triggered when the
+                                           purchases query is complete.
+        :return: None
+        """
+
+        params = (QueryPurchasesParams.newBuilder()
+                  .setProductType(product_type)
+                  .build())
+
+        self.__purchases_response_listener = PurchasesResponseListener(on_query_purchases_response)
+        self.__billing_client.queryPurchasesAsync(params, self.__purchases_response_listener)
 
     def query_product_details_async(self, product_type: str, products_ids: List[str],
                                     on_product_details_response) -> None:
@@ -187,6 +216,46 @@ class BillingClient:
                 .setProductId(product_id)
                 .setProductType(product_type)
                 .build())
+
+    @staticmethod
+    def get_purchase(purchase) -> Dict:
+        """
+        Retrieves detailed information from a purchase object.
+
+        This function extracts important details from a purchase object, such as
+        product IDs, purchase token, purchase state, and other relevant information.
+        The extracted details are then returned as a dictionary.
+
+        :param purchase: The purchase object to extract information from.
+        :type purchase: Purchase
+        :return: A dictionary containing detailed information about the purchase.
+        :rtype: Dict
+        """
+        account_identifiers = purchase.getAccountIdentifiers()
+        pending_purchase_update = purchase.getPendingPurchaseUpdate()
+
+        return {
+            "products": list(purchase.getProducts()),
+            "purchase_token": purchase.getPurchaseToken(),
+            "purchase_state": purchase.getPurchaseState(),
+            "purchase_time": purchase.getPurchaseTime(),
+            "order_id": purchase.getOrderId(),
+            "quantity": purchase.getQuantity(),
+            "is_acknowledged": purchase.isAcknowledged(),
+            "is_auto_renewing": purchase.isAutoRenewing(),
+            "original_json": purchase.getOriginalJson(),
+            "signature": purchase.getSignature(),
+            "package_name": purchase.getPackageName(),
+            "developer_payload": purchase.getDeveloperPayload(),
+            "account_identifiers": {
+                "obfuscated_account_id": account_identifiers.getObfuscatedAccountId(),
+                "obfuscated_profile_id": account_identifiers.getObfuscatedProfileId(),
+            },
+            "pending_purchase_update": {
+                "products": list(pending_purchase_update.getProducts() or []),
+                "purchase_token": pending_purchase_update.getPurchaseToken(),
+            } if pending_purchase_update else None
+        }
 
     @staticmethod
     def get_unfetched_product(unfetched_product) -> Dict:
@@ -325,7 +394,6 @@ class BillingClient:
             self._create_product_params(product_detail, offer_token)
             for product_detail in product_details
         ]
-        print(product_params_list)
 
         billing_flow_params = (BillingFlowParams.newBuilder()
                                .setProductDetailsParamsList(JavaList.of(*product_params_list))

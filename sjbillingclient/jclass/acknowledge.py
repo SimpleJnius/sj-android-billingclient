@@ -4,5 +4,5 @@ __all__ = ("AcknowledgePurchaseParams",)
 
 
 class AcknowledgePurchaseParams(JavaClass, metaclass=MetaJavaClass):
-    __javaclass__ = f"com/android/billingclient/api/AcknowledgePurchaseParams"
+    __javaclass__ = "com/android/billingclient/api/AcknowledgePurchaseParams"
     newBuilder = JavaStaticMethod("()Lcom/android/billingclient/api/AcknowledgePurchaseParams$Builder;")
