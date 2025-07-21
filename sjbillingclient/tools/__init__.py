@@ -344,7 +344,7 @@ class BillingClient:
         return [self._create_product_detail_dict(
             product_details.getProductId(),
             offer_details.getFormattedPrice(),
-            offer_details.getPriceAmountMicros,
+            offer_details.getPriceAmountMicros(),
             offer_details.getPriceCurrencyCode()
         )]
 
