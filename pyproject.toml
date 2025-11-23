@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sjbillingclient"
-version = "1.0.1"
+version = "1.1.0"
 description = "A Python wrapper for the Google Play Billing Library that facilitates in-app purchases and subscriptions in Android applications"
 authors = ["Kenechukwu Akubue <kengoon19@gmail.com>"]
 readme = "README.md"
