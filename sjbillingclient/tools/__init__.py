@@ -2,7 +2,7 @@
 A Python wrapper for the Google Play Billing Library that facilitates in-app purchases and subscriptions.
 
 This module provides a high-level interface to interact with Google Play's billing system through
-the BillingClient class. It handles various billing operations including:
+the BillingClient class. It handles various billing operations, including:
 
 - Establishing and managing billing service connections
 - Querying product details for in-app purchases and subscriptions
@@ -35,25 +35,39 @@ Dependencies:
     - android.activity: For access to the Android activity context
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from jnius import autoclass, JavaException
+
+from sjbillingclient.utils import is_jnull, QueryDict
 from sjbillingclient.jclass.acknowledge import AcknowledgePurchaseParams
-from sjbillingclient.jclass.billing import BillingClient as SJBillingClient, ProductType, ProductDetailsParams, \
-    BillingFlowParams
-from android.activity import _activity as activity  # noqa
+from sjbillingclient.jclass.billing import (
+    BillingClient as SJBillingClient,
+    ProductType,
+    ProductDetailsParams,
+    BillingFlowParams,
+)
+from android import mActivity as activity  # noqa
 from sjbillingclient.jclass.consume import ConsumeParams
 from sjbillingclient.jclass.purchase import PendingPurchasesParams
-from sjbillingclient.jclass.queryproduct import QueryProductDetailsParams, QueryProductDetailsParamsProduct
+from sjbillingclient.jclass.queryproduct import (
+    QueryProductDetailsParams,
+    QueryProductDetailsParamsProduct,
+)
 from sjbillingclient.jclass.querypurchases import QueryPurchasesParams
 from sjbillingclient.jinterface.acknowledge import AcknowledgePurchaseResponseListener
 from sjbillingclient.jinterface.billing import BillingClientStateListener
 from sjbillingclient.jinterface.consume import ConsumeResponseListener
 from sjbillingclient.jinterface.product import ProductDetailsResponseListener
-from sjbillingclient.jinterface.purchases import PurchasesUpdatedListener, PurchasesResponseListener
+from sjbillingclient.jinterface.purchases import (
+    PurchasesUpdatedListener,
+    PurchasesResponseListener,
+)
 
 ERROR_NO_BASE_PLAN = "You don't have a base plan"
 ERROR_NO_BASE_PLAN_ID = "You don't have a base plan id"
-ERROR_INVALID_PRODUCT_TYPE = "product_type not supported. Must be one of `ProductType.SUBS`, `ProductType.INAPP`"
+ERROR_INVALID_PRODUCT_TYPE = (
+    "product_type not supported. Must be one of `ProductType.SUBS`, `ProductType.INAPP`"
+)
 
 
 class BillingClient:
@@ -81,12 +95,12 @@ class BillingClient:
     """
 
     def __init__(
-            self,
-            on_purchases_updated,
-            enable_auto_service_reconnection: bool = True,
-            enable_one_time_products: bool = True,
-            enable_prepaid_plans: bool = False,
-            enable_external_offer: bool = False,
+        self,
+        on_purchases_updated,
+        enable_auto_service_reconnection: bool = True,
+        enable_one_time_products: bool = True,
+        enable_prepaid_plans: bool = False,
+        enable_external_offer: bool = False,
     ) -> None:
         """
         Initializes an instance of the class with the given purchase update callback.
@@ -114,12 +128,15 @@ class BillingClient:
             billing_client.enableExternalOffer()
         if enable_auto_service_reconnection:
             billing_client.enableAutoServiceReconnection()
-        self.__billing_client = billing_client \
-            .setListener(self.__purchase_update_listener) \
-            .enablePendingPurchases(pending_purchase_params.build()) \
+        self.__billing_client = (
+            billing_client.setListener(self.__purchase_update_listener)
+            .enablePendingPurchases(pending_purchase_params.build())
             .build()
+        )
 
-    def start_connection(self, on_billing_setup_finished, on_billing_service_disconnected=lambda: None) -> None:
+    def start_connection(
+        self, on_billing_setup_finished, on_billing_service_disconnected=lambda: None
+    ) -> None:
         """
         Starts a connection with the billing client and initializes the billing
         client state listener. This method sets up a listener to handle billing
@@ -132,8 +149,7 @@ class BillingClient:
         :return: None
         """
         self.__billing_client_state_listener = BillingClientStateListener(
-            on_billing_setup_finished,
-            on_billing_service_disconnected
+            on_billing_setup_finished, on_billing_service_disconnected
         )
         self.__billing_client.startConnection(self.__billing_client_state_listener)
 
@@ -149,7 +165,9 @@ class BillingClient:
         """
         self.__billing_client.endConnection()
 
-    def query_purchase_async(self, product_type: str, on_query_purchases_response) -> None:
+    def query_purchase_async(
+        self, product_type: str, on_query_purchases_response
+    ) -> None:
         """
         Queries purchases asynchronously for a given product type.
 
@@ -158,19 +176,22 @@ class BillingClient:
 
         :param product_type: The type of the products to query purchases for (e.g., "inapp" or "subs").
         :param on_query_purchases_response: A callback function that is triggered when the
-                                           purchases query is complete.
+                                            purchase query is complete.
         :return: None
         """
 
-        params = (QueryPurchasesParams.newBuilder()
-                  .setProductType(product_type)
-                  .build())
+        params = QueryPurchasesParams.newBuilder().setProductType(product_type).build()
 
-        self.__purchases_response_listener = PurchasesResponseListener(on_query_purchases_response)
-        self.__billing_client.queryPurchasesAsync(params, self.__purchases_response_listener)
+        self.__purchases_response_listener = PurchasesResponseListener(
+            on_query_purchases_response
+        )
+        self.__billing_client.queryPurchasesAsync(
+            params, self.__purchases_response_listener
+        )
 
-    def query_product_details_async(self, product_type: str, products_ids: List[str],
-                                    on_product_details_response) -> None:
+    def query_product_details_async(
+        self, product_type: str, products_ids: List[str], on_product_details_response
+    ) -> None:
         """
         Queries product details asynchronously for a given list of product IDs and product type.
 
@@ -189,12 +210,18 @@ class BillingClient:
             for product_id in products_ids
         ]
 
-        params = (QueryProductDetailsParams.newBuilder()
-                  .setProductList(JavaList.of(*product_list))
-                  .build())
+        params = (
+            QueryProductDetailsParams.newBuilder()
+            .setProductList(JavaList.of(*product_list))
+            .build()
+        )
 
-        self.__product_details_response_listener = ProductDetailsResponseListener(on_product_details_response)
-        self.__billing_client.queryProductDetailsAsync(params, self.__product_details_response_listener)
+        self.__product_details_response_listener = ProductDetailsResponseListener(
+            on_product_details_response
+        )
+        self.__billing_client.queryProductDetailsAsync(
+            params, self.__product_details_response_listener
+        )
 
     @staticmethod
     def _build_product_params(product_id: str, product_type: str):
@@ -212,10 +239,12 @@ class BillingClient:
         :return: A constructed product details parameter object.
         :rtype: QueryProductDetailsParamsProduct
         """
-        return (QueryProductDetailsParamsProduct.newBuilder()
-                .setProductId(product_id)
-                .setProductType(product_type)
-                .build())
+        return (
+            QueryProductDetailsParamsProduct.newBuilder()
+            .setProductId(product_id)
+            .setProductType(product_type)
+            .build()
+        )
 
     @staticmethod
     def get_purchase(purchase) -> Dict:
@@ -234,28 +263,38 @@ class BillingClient:
         account_identifiers = purchase.getAccountIdentifiers()
         pending_purchase_update = purchase.getPendingPurchaseUpdate()
 
-        return {
-            "products": list(purchase.getProducts()),
-            "purchase_token": purchase.getPurchaseToken(),
-            "purchase_state": purchase.getPurchaseState(),
-            "purchase_time": purchase.getPurchaseTime(),
-            "order_id": purchase.getOrderId(),
-            "quantity": purchase.getQuantity(),
-            "is_acknowledged": purchase.isAcknowledged(),
-            "is_auto_renewing": purchase.isAutoRenewing(),
-            "original_json": purchase.getOriginalJson(),
-            "signature": purchase.getSignature(),
-            "package_name": purchase.getPackageName(),
-            "developer_payload": purchase.getDeveloperPayload(),
-            "account_identifiers": {
-                "obfuscated_account_id": account_identifiers.getObfuscatedAccountId(),
-                "obfuscated_profile_id": account_identifiers.getObfuscatedProfileId(),
-            },
-            "pending_purchase_update": {
-                "products": list(pending_purchase_update.getProducts() or []),
-                "purchase_token": pending_purchase_update.getPurchaseToken(),
-            } if pending_purchase_update else None
-        }
+        return QueryDict(
+            products=list(
+                purchase.getProducts() if not is_jnull(purchase.getProducts()) else []
+            ),
+            purchase_token=purchase.getPurchaseToken(),
+            purchase_state=purchase.getPurchaseState(),
+            purchase_time=purchase.getPurchaseTime(),
+            order_id=purchase.getOrderId(),
+            quantity=purchase.getQuantity(),
+            is_acknowledged=purchase.isAcknowledged(),
+            is_auto_renewing=purchase.isAutoRenewing(),
+            original_json=purchase.getOriginalJson(),
+            signature=purchase.getSignature(),
+            package_name=purchase.getPackageName(),
+            developer_payload=purchase.getDeveloperPayload(),
+            account_identifiers=QueryDict(
+                obfuscated_account_id=account_identifiers.getObfuscatedAccountId(),
+                obfuscated_profile_id=account_identifiers.getObfuscatedProfileId(),
+            ),
+            pending_purchase_update=(
+                QueryDict(
+                    products=list(
+                        pending_purchase_update.getProducts()
+                        if not is_jnull(pending_purchase_update.getProducts())
+                        else []
+                    ),
+                    purchase_token=pending_purchase_update.getPurchaseToken(),
+                )
+                if pending_purchase_update
+                else None
+            ),
+        )
 
     @staticmethod
     def get_unfetched_product(unfetched_product) -> Dict:
@@ -273,13 +312,13 @@ class BillingClient:
             product, including its ID, type, and status code.
         :rtype: Dict
         """
-        return {
-            "product_id": unfetched_product.getProductId(),
-            "product_type": unfetched_product.getProductType(),
-            "status_code": unfetched_product.getStatusCode(),
-        }
+        return QueryDict(
+            product_id=unfetched_product.getProductId(),
+            product_type=unfetched_product.getProductType(),
+            status_code=unfetched_product.getStatusCode(),
+        )
 
-    def get_product_details(self, product_details, product_type: str) -> List[Dict]:
+    def get_product_details(self, product_details, product_type: str) -> Dict[str, Any]:
         """
         Retrieves the details of a product based on the provided product type. The function processes
         different types of products, such as subscriptions and in-app purchases, and returns the corresponding
@@ -299,7 +338,8 @@ class BillingClient:
             return self._get_inapp_purchase_details(product_details)
         raise Exception(ERROR_INVALID_PRODUCT_TYPE)
 
-    def _get_subscription_details(self, product_details) -> List[Dict]:
+    @staticmethod
+    def _get_subscription_details(product_details) -> Dict[str, Any]:
         """
         Retrieves subscription details from the provided product details by parsing its
         subscription offer details and related pricing phases. The extracted details
@@ -310,21 +350,55 @@ class BillingClient:
         :type product_details: Any
         :return: List of dictionaries, each containing subscription details such as
             product ID, formatted price, price amount in micros, and currency code.
-        :rtype: List[Dict]
+        :rtype: List[Dict[str, Any]]
         """
-        details = []
-        offer_details = product_details.getSubscriptionOfferDetails()
-        for offer in offer_details:
-            pricing_phase = offer.getPricingPhases().getPricingPhaseList().get(0)
-            details.append(self._create_product_detail_dict(
-                product_details.getProductId(),
-                pricing_phase.getFormattedPrice(),
-                pricing_phase.getPriceAmountMicros,
-                pricing_phase.getPriceCurrencyCode()
-            ))
+        details = QueryDict(
+            description=product_details.getDescription(),
+            name=product_details.getName(),
+            product_id=product_details.getProductId(),
+            product_type=product_details.getProductType(),
+            title=product_details.getTitle(),
+            offer_details=[
+                QueryDict(
+                    base_plan_id=offer.getBasePlanId(),
+                    installment_plan_details=(
+                        None
+                        if not offer.getInstallmentPlanDetails()
+                        else QueryDict(
+                            installment_plan_commitment_payments_count=(
+                                offer.getInstallmentPlanDetails().getInstallmentPlanCommitmentPaymentsCount()
+                            ),
+                            subsequent_installment_plan_commitment_payments_count=(
+                                offer.getInstallmentPlanDetails().getSubsequentInstallmentPlanCommitmentPaymentsCount()
+                            ),
+                        )
+                    ),
+                    offer_id=offer.getOfferId(),
+                    offer_tags=list(
+                        offer.getOfferTags()
+                        if not is_jnull(offer.getOfferTags())
+                        else []
+                    ),
+                    offer_token=offer.getOfferToken(),
+                    pricing_phases=[
+                        QueryDict(
+                            billing_cycle_count=pricing_phase.getBillingCycleCount(),
+                            billing_period=pricing_phase.getBillingPeriod(),
+                            formatted_price=pricing_phase.getFormattedPrice(),
+                            price_amount_micros=pricing_phase.getPriceAmountMicros(),
+                            price_currency_code=pricing_phase.getPriceCurrencyCode(),
+                            recurrence_mode=pricing_phase.getRecurrenceMode(),
+                        )
+                        for pricing_phase in offer.getPricingPhases().getPricingPhaseList()
+                    ],
+                )
+                for offer in product_details.getSubscriptionOfferDetails()
+            ],
+        )
         return details
 
-    def _get_inapp_purchase_details(self, product_details) -> List[Dict]:
+    @staticmethod
+    def _get_inapp_purchase_details(product_details) -> Dict[str, Any]:
         """
         Retrieve and construct in-app purchase product details.
 
@@ -340,43 +414,85 @@ class BillingClient:
             based on the provided product information.
         :rtype: List[Dict]
         """
-        offer_details = product_details.getOneTimePurchaseOfferDetails()
-        return [self._create_product_detail_dict(
-            product_details.getProductId(),
-            offer_details.getFormattedPrice(),
-            offer_details.getPriceAmountMicros(),
-            offer_details.getPriceCurrencyCode()
-        )]
+        details = QueryDict(
+            description=product_details.getDescription(),
+            name=product_details.getName(),
+            product_id=product_details.getProductId(),
+            product_type=product_details.getProductType(),
+            title=product_details.getTitle(),
+            offer_details=[
+                QueryDict(
+                    discount_display_info=(
+                        None
+                        if not offer.getDiscountDisplayInfo()
+                        else QueryDict(
+                            discount_amount=QueryDict(
+                                discount_amount_currency_code=offer.getDiscountDisplayInfo()
+                                .getDiscountAmount()
+                                .getDiscountAmountCurrencyCode(),
+                                get_discount_amount_micros=offer.getDiscountDisplayInfo()
+                                .getDiscountAmount()
+                                .getDiscountAmountMicros(),
+                                formatted_discount_amount=offer.getDiscountDisplayInfo()
+                                .getDiscountAmount()
+                                .getFormattedDiscountAmount(),
+                            ),
+                            percentage_discount=offer.getDiscountDisplayInfo().getPercentageDiscount(),
+                        )
+                    ),
+                    formatted_price=offer.getFormattedPrice(),
+                    full_price_micros=offer.getPriceAmountMicros(),
+                    limited_quantity_info=(
+                        None
+                        if not offer.getLimitedQuantityInfo()
+                        else QueryDict(
+                            maximum_quantity=offer.getLimitedQuantityInfo().getMaximumQuantity(),
+                            remaining_quantity=offer.getLimitedQuantityInfo().getRemainingQuantity(),
+                        )
+                    ),
+                    offer_id=offer.getOfferId(),
+                    offer_tags=list(
+                        offer.getOfferTags()
+                        if not is_jnull(offer.getOfferTags())
+                        else []
+                    ),
+                    offer_token=offer.getOfferToken(),
+                    preorder_details=(
+                        None
+                        if not offer.getPreorderDetails()
+                        else QueryDict(
+                            preorder_presale_end_time_millis=offer.getPreorderDetails().getPreorderPresaleEndTimeMillis(),
+                            preorder_release_time_millis=offer.getPreorderDetails().getPreorderReleaseTimeMillis(),
+                        )
+                    ),
+                    price_amount_micros=offer.getPriceAmountMicros(),
+                    price_currency_code=offer.getPriceCurrencyCode(),
+                    purchase_option_id=offer.getPurchaseOptionId(),
+                    rental_details=(
+                        None
+                        if not offer.getRentalDetails()
+                        else QueryDict(
+                            rental_expiration_period=offer.getRentalDetails().getRentalExpirationPeriod(),
+                            rental_period=offer.getRentalDetails().getRentalPeriod(),
+                        )
+                    ),
+                    valid_time_window=(
+                        None
+                        if not offer.getValidTimeWindow()
+                        else QueryDict(
+                            end_time_millis=offer.getValidTimeWindow().getEndTimeMillis(),
+                            start_time_millis=offer.getValidTimeWindow().getStartTimeMillis(),
+                        )
+                    ),
+                )
+                for offer in product_details.getOneTimePurchaseOfferDetailsList()
+            ],
+        )
+        return details
 
-    @staticmethod
-    def _create_product_detail_dict(product_id: str, formatted_price: str,
-                                    price_amount_micros, price_currency_code: str) -> Dict:
-        """
-        Creates a dictionary containing product details.
-
-        This method generates and returns a dictionary that encapsulates product
-        details such as the product identifier, formatted price, price in micros,
-        and the price currency code.
-
-        :param product_id: The unique identifier for the product.
-        :type product_id: str
-        :param formatted_price: The human-readable price of the product.
-        :type formatted_price: str
-        :param price_amount_micros: The price of the product in micro-units.
-        :type price_amount_micros: int
-        :param price_currency_code: The currency code associated with the product price.
-        :type price_currency_code: str
-        :return: A dictionary holding the product details.
-        :rtype: Dict
-        """
-        return {
-            "product_id": product_id,
-            "formatted_price": formatted_price,
-            "price_amount_micros": price_amount_micros,
-            "price_currency_code": price_currency_code,
-        }
-
-    def launch_billing_flow(self, product_details: List, offer_token: Optional[str] = None):
+    def launch_billing_flow(
+        self, product_details: List, offer_token: Optional[str] = None
+    ):
         """
         Initiates the in-app billing flow for the specified product details and an optional
         offer token. The method constructs billing flow parameters using the provided product
@@ -395,9 +511,11 @@ class BillingClient:
             for product_detail in product_details
         ]
 
-        billing_flow_params = (BillingFlowParams.newBuilder()
-                               .setProductDetailsParamsList(JavaList.of(*product_params_list))
-                               .build())
+        billing_flow_params = (
+            BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(JavaList.of(*product_params_list))
+            .build()
+        )
 
         return self.__billing_client.launchBillingFlow(activity, billing_flow_params)
 
@@ -483,7 +601,9 @@ class BillingClient:
             .build()
         )
         self.__consume_response_listener = ConsumeResponseListener(on_consume_response)
-        self.__billing_client.consumeAsync(consume_params, self.__consume_response_listener)
+        self.__billing_client.consumeAsync(
+            consume_params, self.__consume_response_listener
+        )
 
     def acknowledge_purchase(self, purchase_token, on_acknowledge_purchase_response):
         """
@@ -506,10 +626,9 @@ class BillingClient:
             .build()
         )
 
-        self.__acknowledge_purchase_response_listener = AcknowledgePurchaseResponseListener(
-            on_acknowledge_purchase_response
+        self.__acknowledge_purchase_response_listener = (
+            AcknowledgePurchaseResponseListener(on_acknowledge_purchase_response)
         )
         self.__billing_client.acknowledgePurchase(
-            acknowledge_purchase_params,
-            self.__acknowledge_purchase_response_listener
+            acknowledge_purchase_params, self.__acknowledge_purchase_response_listener
         )
